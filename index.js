@@ -1,12 +1,17 @@
 var express = require('express'),
     bodyParser = require('body-parser'),
     request = require('request'),
-    config = require('./config.json'),
     app = express(),
     port = 3000;
 
+try {
+  config = require('./config.json');
+  console.log("Required local dev config");
+} catch (err) {
+  console.log("Local config not needed on Heroku.");
+}
+
 var semaphoreAuth = process.env.SEMAPHORE_AUTH || config.semaphoreAuth;
-console.log(semaphoreAuth);
 var projectHashID = process.env.PROJECT_HASH_ID || config.projectHashID;
 var branchID = process.env.BRANCH_ID || config.branchID;
 var slackChannelURL = process.env.SLACK_CHANNEL_URL || config.slackChannelURL;
