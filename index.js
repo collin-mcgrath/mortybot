@@ -5,7 +5,17 @@ var express = require('express'),
     app = express(),
     port = 3000;
 
+var semaphoreAuth = process.env.SEMAPHORE_AUTH || config.semaphoreAuth;
+console.log(semaphoreAuth);
+var projectHashID = process.env.PROJECT_HASH_ID || config.projectHashID;
+var branchID = process.env.BRANCH_ID || config.branchID;
+var slackChannelURL = process.env.SLACK_CHANNEL_URL || config.slackChannelURL;
+
 app.use(bodyParser.json());
+
+app.get('/', function (req, res) {
+  res.send("Welcome to Mortybot!");
+});
 
 app.post('/', function (req, res) {
     var buildNumber = req.body.build_number;
@@ -17,7 +27,7 @@ app.post('/', function (req, res) {
 
 function getBuildLogs (buildNumber) {
     var results;
-    var buildUrl = "https://semaphoreci.com/api/v1/projects/" + config.projectHashID + "/" + config.branchID + "/builds/" + buildNumber + "/log?auth_token=" + config.semaphoreAuth;
+    var buildUrl = "https://semaphoreci.com/api/v1/projects/" + projectHashID + "/" + branchID + "/builds/" + buildNumber + "/log?auth_token=" + semaphoreAuth;
     console.log("Getting logs for build " + buildNumber + ".");
     request(buildUrl, function (error, response, body) {
         if (!error && response.statusCode == 200) {
@@ -42,7 +52,7 @@ function sendSlackMessage (message) {
     body.icon_emoji = ":morty:";
 
     request({
-            url: config.slackChannelURL,
+            url: slackChannelURL,
             method: 'POST',
             body: JSON.stringify(body)
         });
