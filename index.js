@@ -2,7 +2,7 @@ var express = require('express'),
     bodyParser = require('body-parser'),
     request = require('request'),
     app = express(),
-    port = 3000;
+    port = process.env.PORT || 3000;
 
 try {
   config = require('./config.json');
