@@ -26,7 +26,6 @@ app.get('/', function (req, res) {
 
 app.post('/', function (req, res) {
   console.log("Request received. Request body:\n" + JSON.stringify(req.body));
-  // var buildNumber = req.body.build_number;
 
   getBuildLogs(req);
 
@@ -45,13 +44,7 @@ function getBuildLogs (req) {
       var parsed = JSON.parse(body);
       var output = parsed.threads[0].commands[8].output;
       var results = output.split("-------------------------------------------------------------------------------")[2];
-      // Need to pull this out into the formatting method
-      // Should handle expired executions
-      if (results === null) {
-        results = output.split("\n");
-        results = results[results.length - 1];
-        console.log("No results found for build " + buildNumber + ". Printing last line:" + results);
-      }
+
       sendSlackMessage(req, results);
     }
   });
@@ -76,19 +69,27 @@ function formatSlackMessage(req, message) {
   body = {};
   body.channel = "#qabot_testing";
   body.username = "Morty";
-  body.icon_url = "https://d13yacurqjgara.cloudfront.net/users/1218055/screenshots/2958826/morty_1x.jpg";
+  body.icon_url = "http://images.8tracks.com/cover/i/009/572/299/morty-9356.jpg?rect=0,0,500,500&q=98&fm=jpg&fit=max";
 
   body.attachments = [];
   attachment = {};
 
-  if (message.includes("FAILED")) {
+  if (message === undefined) {
+    attachment.title = "<" + buildURL + "|Build " + buildNumber + ">";
+    attachment.text = "No build information. Please examine logs.";
+    attachment.color = 'warning';
+    console.log("No results found for build " + buildNumber + ". Most likely execution expired.");
+  }
+  else if (message.includes("FAILED")) {
     attachment.title = "<" + buildURL + "|Build " + buildNumber + " Failed>";
     attachment.text = message;
     attachment.color = 'danger';
+    console.log("Build " + buildNumber + "failed.");
   }
   else {
     attachment.title = "<" + buildURL + "|Build " + buildNumber + " Passed>";
     attachment.color = 'good';
+    console.log("Build " + buildNumber + "passed.");
   }
   body.attachments[0] = attachment;
 
