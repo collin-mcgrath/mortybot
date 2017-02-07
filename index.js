@@ -4,7 +4,7 @@ var express = require('express'),
     app = express(),
     port = process.env.PORT || 3000;
 
-// Try to get local config.json if present
+// Try to get local secrets from config.json if present
 // Falls back to Heroku config if not
 try {
   config = require('./config.json');
@@ -12,7 +12,6 @@ try {
 } catch (err) {
   console.log("Local config.json not needed on Heroku. Using Heroku config instead.");
 }
-
 var semaphoreAuth = process.env.SEMAPHORE_AUTH || config.semaphoreAuth;
 var projectHashID = process.env.PROJECT_HASH_ID || config.projectHashID;
 var branchID = process.env.BRANCH_ID || config.branchID;
@@ -20,10 +19,12 @@ var slackChannelURL = process.env.SLACK_CHANNEL_URL || config.slackChannelURL;
 
 app.use(bodyParser.json());
 
+// Just to show it's live
 app.get('/', function (req, res) {
   res.send("Welcome to Mortybot!");
 });
 
+// Catches the Semaphore webhook that is configured to fire after a build has finished
 app.post('/', function (req, res) {
   console.log("Request received. Request body:\n" + JSON.stringify(req.body));
 
@@ -34,6 +35,7 @@ app.post('/', function (req, res) {
   });
 });
 
+// Builds the URL and makes a GET request to the Semaphore API to get the full build logs
 function getBuildLogs (req) {
   var buildNumber = req.body.build_number;
   var results;
@@ -54,6 +56,7 @@ function getBuildLogs (req) {
 function sendSlackMessage (req, message) {
   var body = formatSlackMessage(req, message);
 
+  // Sends a POST request to a Slack channel
   request({
     url: slackChannelURL,
     method: 'POST',
@@ -63,6 +66,8 @@ function sendSlackMessage (req, message) {
   console.log("Sending message to " + body.channel + " Slack channel. Message text included below: \n" + JSON.stringify(body));
 }
 
+// Formats the message based on the success of the build
+// Could definitely be DRYer
 function formatSlackMessage(req, message) {
   buildNumber = req.body.build_number;
   buildURL = req.body.build_url;
@@ -74,18 +79,21 @@ function formatSlackMessage(req, message) {
   body.attachments = [];
   attachment = {};
 
+  // Handles builds where execution expired and no results are recorded
   if (message === undefined) {
     attachment.title = "<" + buildURL + "|Build " + buildNumber + ">";
-    attachment.text = "No build information. Please examine logs.";
+    attachment.text = "No build information. Please examine build logs.";
     attachment.color = 'warning';
     console.log("No results found for build " + buildNumber + ". Most likely execution expired.");
   }
+  // >=1 FAILED build
   else if (message.includes("FAILED")) {
     attachment.title = "<" + buildURL + "|Build " + buildNumber + " Failed>";
     attachment.text = message;
     attachment.color = 'danger';
     console.log("Build " + buildNumber + "failed.");
   }
+  // All passing builds
   else {
     attachment.title = "<" + buildURL + "|Build " + buildNumber + " Passed>";
     attachment.color = 'good';
