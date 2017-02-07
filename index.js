@@ -44,15 +44,22 @@ function getBuildLogs (req) {
   request(buildUrl, function (error, response, body) {
     if (!error && response.statusCode == 200) {
       var parsed = JSON.parse(body);
-      var output = parsed.threads[0].commands[8].output;
-      var results = output.split("-------------------------------------------------------------------------------")[2];
+      // Need to handle the case where build bombs out before reaching the last command.
+      try {
+        var output = parsed.threads[0].commands[8].output;
+        results = output.split("-------------------------------------------------------------------------------")[2];
+      } catch (err) {
+        console.log("No output detected. Falling back to execution expired message");
+        // TODO: Do this better
+        results = "Unknown failure";
+      }
 
       sendSlackMessage(req, results);
     }
   });
 }
 
-// Should probably pass this as a callback to getBuildLogs
+// TODO: Should probably pass this as a callback to getBuildLogs
 function sendSlackMessage (req, message) {
   var body = formatSlackMessage(req, message);
 
@@ -63,11 +70,11 @@ function sendSlackMessage (req, message) {
     body: JSON.stringify(body)
   });
 
-  console.log("Sending message to " + body.channel + " Slack channel. Message text included below: \n" + JSON.stringify(body));
+  console.log("Sending message to " + body.channel + " Slack channel. Message body included below: \n" + JSON.stringify(body));
 }
 
 // Formats the message based on the success of the build
-// Could definitely be DRYer
+// TODO: Could definitely be DRYer
 function formatSlackMessage(req, message) {
   buildNumber = req.body.build_number;
   buildURL = req.body.build_url;
@@ -79,8 +86,9 @@ function formatSlackMessage(req, message) {
   body.attachments = [];
   attachment = {};
 
+  // TODO: Move into switch statement
   // Handles builds where execution expired and no results are recorded
-  if (message === undefined) {
+  if (message == "Unknown failure") {
     attachment.title = "<" + buildURL + "|Build " + buildNumber + ">";
     attachment.text = "No build information. Please examine build logs.";
     attachment.color = 'warning';
@@ -91,13 +99,13 @@ function formatSlackMessage(req, message) {
     attachment.title = "<" + buildURL + "|Build " + buildNumber + " Failed>";
     attachment.text = message;
     attachment.color = 'danger';
-    console.log("Build " + buildNumber + "failed.");
+    console.log("Build " + buildNumber + " failed.");
   }
   // All passing builds
   else {
     attachment.title = "<" + buildURL + "|Build " + buildNumber + " Passed>";
     attachment.color = 'good';
-    console.log("Build " + buildNumber + "passed.");
+    console.log("Build " + buildNumber + " passed.");
   }
   body.attachments[0] = attachment;
 
