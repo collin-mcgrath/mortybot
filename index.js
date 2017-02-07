@@ -4,6 +4,8 @@ var express = require('express'),
     app = express(),
     port = process.env.PORT || 3000;
 
+// Try to get local config.json if present
+// Falls back to Heroku config if not
 try {
   config = require('./config.json');
   console.log("Required local dev config");
@@ -26,12 +28,18 @@ app.post('/', function (req, res) {
   console.log("Request received. Request body:\n" + JSON.stringify(req.body));
   var buildNumber = req.body.build_number;
 
+  debug(req.body);
   getBuildLogs(buildNumber);
 
   res.json({
     message: 'Request received.'
   });
 });
+
+function debug (body) {
+  console.log(body.build_number);
+  console.log(body.project_name + "/" + body.branch_name + ": " + body.commit.message);
+}
 
 function getBuildLogs (buildNumber) {
   var results;
@@ -52,6 +60,7 @@ function getBuildLogs (buildNumber) {
   });
 }
 
+// Should probably pass this as a callback to getBuildLogs
 function sendSlackMessage (build, message) {
   var body = formatSlackMessage(build, message);
 
@@ -64,11 +73,11 @@ function sendSlackMessage (build, message) {
   console.log("Sending message to " + body.channel + " Slack channel. Message text included below: \n" + JSON.stringify(body));
 }
 
-function formatSlackMessage(build, message, buildUrl) {
+function formatSlackMessage(build, message) {
   body = {};
   // body.text = message;
   body.channel = "#qabot_testing";
-  body.username = "Morty Smith";
+  body.username = "Morty";
   // body.icon_emoji = ":morty:";
   body.icon_url = "https://d13yacurqjgara.cloudfront.net/users/1218055/screenshots/2958826/morty_1x.jpg";
 
@@ -77,12 +86,15 @@ function formatSlackMessage(build, message, buildUrl) {
   // Pass the `build_url` down from the initial request and link to it here
   // Requires some refactoring of the getBuildLogs method so we don't have a
   // ton of parameters
-  attachment.pretext = "<https://google.com|Build " + build + ">";
-  attachment.text = message;
-  // Add coloring here based on results
-  // green = all passing, red = one or more failed, orange = expired or something else
-  // 'good', 'danger', 'warning'
-  attachment.color = 'good';
+  if (message.includes("FAILED")) {
+    attachment.title = "<https://google.com|Build " + build + " Failed>";
+    attachment.text = message;
+    attachment.color = 'danger';
+  }
+  else {
+    attachment.title = "<https://google.com|Build " + build + " Passed>";
+    attachment.color = 'good';
+  }
   body.attachments[0] = attachment;
 
   return body;
