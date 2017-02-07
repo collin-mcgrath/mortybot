@@ -26,22 +26,17 @@ app.get('/', function (req, res) {
 
 app.post('/', function (req, res) {
   console.log("Request received. Request body:\n" + JSON.stringify(req.body));
-  var buildNumber = req.body.build_number;
+  // var buildNumber = req.body.build_number;
 
-  debug(req.body);
-  getBuildLogs(buildNumber);
+  getBuildLogs(req);
 
   res.json({
     message: 'Request received.'
   });
 });
 
-function debug (body) {
-  console.log(body.build_number);
-  console.log(body.project_name + "/" + body.branch_name + ": " + body.commit.message);
-}
-
-function getBuildLogs (buildNumber) {
+function getBuildLogs (req) {
+  var buildNumber = req.body.build_number;
   var results;
   var buildUrl = "https://semaphoreci.com/api/v1/projects/" + projectHashID + "/" + branchID + "/builds/" + buildNumber + "/log?auth_token=" + semaphoreAuth;
   console.log("Getting logs for build " + buildNumber + ".");
@@ -50,19 +45,21 @@ function getBuildLogs (buildNumber) {
       var parsed = JSON.parse(body);
       var output = parsed.threads[0].commands[8].output;
       var results = output.split("-------------------------------------------------------------------------------")[2];
+      // Need to pull this out into the formatting method
+      // Should handle expired executions
       if (results === null) {
         results = output.split("\n");
         results = results[results.length - 1];
         console.log("No results found for build " + buildNumber + ". Printing last line:" + results);
       }
-      sendSlackMessage(buildNumber, results);
+      sendSlackMessage(req, results);
     }
   });
 }
 
 // Should probably pass this as a callback to getBuildLogs
-function sendSlackMessage (build, message) {
-  var body = formatSlackMessage(build, message);
+function sendSlackMessage (req, message) {
+  var body = formatSlackMessage(req, message);
 
   request({
     url: slackChannelURL,
@@ -73,26 +70,24 @@ function sendSlackMessage (build, message) {
   console.log("Sending message to " + body.channel + " Slack channel. Message text included below: \n" + JSON.stringify(body));
 }
 
-function formatSlackMessage(build, message) {
+function formatSlackMessage(req, message) {
+  buildNumber = req.body.build_number;
+  buildURL = req.body.build_url;
   body = {};
-  // body.text = message;
   body.channel = "#qabot_testing";
   body.username = "Morty";
-  // body.icon_emoji = ":morty:";
   body.icon_url = "https://d13yacurqjgara.cloudfront.net/users/1218055/screenshots/2958826/morty_1x.jpg";
 
   body.attachments = [];
   attachment = {};
-  // Pass the `build_url` down from the initial request and link to it here
-  // Requires some refactoring of the getBuildLogs method so we don't have a
-  // ton of parameters
+
   if (message.includes("FAILED")) {
-    attachment.title = "<https://google.com|Build " + build + " Failed>";
+    attachment.title = "<" + buildURL + "|Build " + buildNumber + " Failed>";
     attachment.text = message;
     attachment.color = 'danger';
   }
   else {
-    attachment.title = "<https://google.com|Build " + build + " Passed>";
+    attachment.title = "<" + buildURL + "|Build " + buildNumber + " Passed>";
     attachment.color = 'good';
   }
   body.attachments[0] = attachment;
