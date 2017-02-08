@@ -50,6 +50,7 @@ function getBuildLogs (req) {
         results = output.split("-------------------------------------------------------------------------------")[2];
       } catch (err) {
         console.log("No output detected. Falling back to execution expired message");
+        // Catches the case where the build dies before the final command runs
         // TODO: Do this better
         results = "Unknown failure";
       }
@@ -88,7 +89,9 @@ function formatSlackMessage(req, message) {
 
   // TODO: Move into switch statement
   // Handles builds where execution expired and no results are recorded
-  if (message == "Unknown failure") {
+  // "Unknown failure" happens when the build dies before the final command runs (e.g. K8 launch failure)
+  // undefined happens when the final command cannot be split on the '----' string, so parsing breaks
+  if (message == "Unknown failure" || message === undefined) {
     attachment.title = "<" + buildURL + "|Build " + buildNumber + ">";
     attachment.text = "No build information. Please examine build logs.";
     attachment.color = 'warning';
