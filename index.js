@@ -4,7 +4,7 @@ var express = require('express'),
     app = express(),
     port = process.env.PORT || 3000;
 
-// Try to get local secrets from config.json if present
+// Tries to get local secrets from config.json if present
 // Falls back to Heroku config if not
 try {
   config = require('./config.json');
@@ -93,20 +93,23 @@ function formatSlackMessage(req, message) {
   // undefined happens when the final command cannot be split on the '----' string, so parsing breaks
   if (message == "Unknown failure" || message === undefined) {
     attachment.title = "<" + buildURL + "|Build " + buildNumber + ">";
-    attachment.text = "No build information. Please examine build logs.";
+    attachment.text = "No information. Please examine build logs.";
+    attachment.fallback = "Build " + buildNumber + " failed";
     attachment.color = 'warning';
-    console.log("No results found for build " + buildNumber + ". Most likely execution expired.");
+    console.log("No results found for build " + buildNumber + ". Most likely execution expired or a setup command failed.");
   }
   // >=1 FAILED build
   else if (message.includes("FAILED")) {
     attachment.title = "<" + buildURL + "|Build " + buildNumber + " Failed>";
     attachment.text = message;
+    attachment.fallback = "Build " + buildNumber + " failed";
     attachment.color = 'danger';
-    console.log("Build " + buildNumber + " failed.");
+    console.log("Build " + buildNumber + " failed");
   }
   // All passing builds
   else {
     attachment.title = "<" + buildURL + "|Build " + buildNumber + " Passed>";
+    attachment.fallback = "Build " + buildNumber + " passed";
     attachment.color = 'good';
     console.log("Build " + buildNumber + " passed.");
   }
