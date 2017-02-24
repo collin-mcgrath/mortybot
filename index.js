@@ -1,6 +1,7 @@
 var express = require('express'),
     bodyParser = require('body-parser'),
     request = require('request'),
+    WebClient = require('@slack/client').WebClient,
     app = express(),
     port = process.env.PORT || 3000;
 
@@ -16,6 +17,9 @@ var semaphoreAuth = process.env.SEMAPHORE_AUTH || config.semaphoreAuth;
 var projectHashID = process.env.PROJECT_HASH_ID || config.projectHashID;
 var branchID = process.env.BRANCH_ID || config.branchID;
 var slackChannelURL = process.env.SLACK_CHANNEL_URL || config.slackChannelURL;
+var token = process.env.SLACK_API_TOKEN || config.slackApiToken;
+var web = new WebClient(token);
+var CHANNEL_ID = "C3RGQL1BN";
 
 app.use(bodyParser.json());
 
@@ -121,6 +125,26 @@ function formatSlackMessage(req, message) {
   body.attachments[0] = attachment;
 
   return body;
+}
+
+replyViaThread("Test message");
+
+function replyViaThread(message) {
+  web.channels.history(CHANNEL_ID, {count:1}, function(err, res) {
+      if (err) {
+          console.log('Error:', err);
+      } else {
+          threadID = res.messages[0].thread_ts || res.messages[0].ts;
+          console.log('Thread Timestamp: ', threadID);
+          web.chat.postMessage(CHANNEL_ID, message, {thread_ts : threadID}, function(err, res) {
+            if (err) {
+                console.log('Error:', err);
+            } else {
+                console.log('Response: ', res);
+            }
+          });
+      }
+  });
 }
 
 var server = app.listen(port, function () {
