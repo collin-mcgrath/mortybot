@@ -28,7 +28,13 @@ app.get('/', function (req, res) {
 app.post('/', function (req, res) {
   console.log("Request received. Request body:\n" + JSON.stringify(req.body));
 
-  getBuildLogs(req);
+  // Do not get build for feature branches.
+  if (req.body.branch_name == "master") {
+    getBuildLogs(req);
+  }
+  else {
+    console.log("Request is for a feature branch. Stopping execution.");
+  }
 
   res.json({
     message: 'Request received.'
@@ -90,7 +96,6 @@ function formatSlackMessage(req, message) {
   // TODO: Move into switch statement
   // Handles builds where execution expired and no results are recorded
   // "Unknown failure" happens when the build dies before the final command runs (e.g. K8 launch failure)
-  // undefined happens when the final command cannot be split on the '----' string, so parsing breaks
   if (message == "Unknown failure" || message === undefined) {
     attachment.title = "<" + buildURL + "|Build " + buildNumber + ">";
     attachment.text = "No information. Please examine build logs.";

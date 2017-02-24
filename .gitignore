@@ -4,4 +4,4 @@ notes.txt
 config.json
 test.js
 .env
-semaphore_hook.json
+semaphore*.json
