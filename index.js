@@ -18,8 +18,8 @@ var projectHashID = process.env.PROJECT_HASH_ID || config.projectHashID;
 var branchID = process.env.BRANCH_ID || config.branchID;
 var slackChannelURL = process.env.SLACK_CHANNEL_URL || config.slackChannelURL;
 var token = process.env.SLACK_API_TOKEN || config.slackApiToken;
+var CHANNEL_ID = process.env.SLACK_CHANNEL_ID || config.slackChannelID;
 var web = new WebClient(token);
-var CHANNEL_ID = "C3RGQL1BN";
 
 app.use(bodyParser.json());
 
@@ -49,6 +49,7 @@ app.post('/', function (req, res) {
 function getBuildLogs (req) {
   var buildNumber = req.body.build_number;
   var results;
+  var buildLog;
   var buildUrl = "https://semaphoreci.com/api/v1/projects/" + projectHashID + "/" + branchID + "/builds/" + buildNumber + "/log?auth_token=" + semaphoreAuth;
   console.log("Getting logs for build " + buildNumber + ".");
   request(buildUrl, function (error, response, body) {
@@ -57,21 +58,28 @@ function getBuildLogs (req) {
       // Need to handle the case where build bombs out before reaching the last command.
       try {
         var output = parsed.threads[0].commands[8].output;
-        results = output.split("-------------------------------------------------------------------------------")[2];
+        var logArray = output.split("-------------------------------------------------------------------------------");
+        results = logArray[2];
+        buildLog = logArray[0];
+
+        // TODO: Loop through for all failed tags. Send each in a new thread message
+        // TODO: Remove HTML formatting and put inside a code block
+        failedTags = "Failed Example Tags:" + buildLog.split("Failed Example Tags:")[1].split("Failures:")[0].split("Rerun")[0];
+        console.log(failedTags);
       } catch (err) {
         console.log("No output detected. Falling back to execution expired message");
         // Catches the case where the build dies before the final command runs
-        // TODO: Do this better
         results = "Unknown failure";
       }
 
-      sendSlackMessage(req, results);
+      parseBuildLogs();
+      sendSlackMessage(req, results, replyViaThread(failedTags));
     }
   });
 }
 
-// TODO: Should probably pass this as a callback to getBuildLogs
-function sendSlackMessage (req, message) {
+// Send the main Slack message (Build Failed, Passed, etc.)
+function sendSlackMessage (req, message, callback) {
   var body = formatSlackMessage(req, message);
 
   // Sends a POST request to a Slack channel
@@ -127,9 +135,8 @@ function formatSlackMessage(req, message) {
   return body;
 }
 
-replyViaThread("Test message");
-
-function replyViaThread(message) {
+// Reply to the main message with the failed tags. Each tag group should be a new thread message
+var replyViaThread = function(message) {
   web.channels.history(CHANNEL_ID, {count:1}, function(err, res) {
       if (err) {
           console.log('Error:', err);
@@ -145,6 +152,12 @@ function replyViaThread(message) {
           });
       }
   });
+};
+
+// TODO: Move the parsing here
+// Return build summary and array of failed tag lists
+function parseBuildLogs() {
+  console.log("BUILD ME SOON PLZ");
 }
 
 var server = app.listen(port, function () {
