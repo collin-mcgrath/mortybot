@@ -1,10 +1,3 @@
-var express = require('express'),
-    bodyParser = require('body-parser'),
-    request = require('request'),
-    WebClient = require('@slack/client').WebClient,
-    app = express(),
-    port = process.env.PORT || 3000;
-
 // Tries to get local secrets from config.json if present
 // Falls back to Heroku config if not
 try {
@@ -13,13 +6,22 @@ try {
 } catch (err) {
   console.log("Local config.json not needed on Heroku. Using Heroku config instead.");
 }
-var semaphoreAuth = process.env.SEMAPHORE_AUTH || config.semaphoreAuth;
-var projectHashID = process.env.PROJECT_HASH_ID || config.projectHashID;
-var branchID = process.env.BRANCH_ID || config.branchID;
-var slackChannelURL = process.env.SLACK_CHANNEL_URL || config.slackChannelURL;
-var token = process.env.SLACK_API_TOKEN || config.slackApiToken;
+
+// Constants and ENV stuff
+var SEMAPHORE_AUTH = process.env.SEMAPHORE_AUTH || config.semaphoreAuth;
+var PROJECT_HASH_ID = process.env.PROJECT_HASH_ID || config.projectHashID;
+var BRANCH_ID = process.env.BRANCH_ID || config.branchID;
+var SLACK_CHANNEL_URL = process.env.SLACK_CHANNEL_URL || config.slackChannelURL;
+var TOKEN = process.env.SLACK_API_TOKEN || config.slackApiToken;
 var CHANNEL_ID = process.env.SLACK_CHANNEL_ID || config.slackChannelID;
-var web = new WebClient(token);
+
+var express = require('express'),
+    bodyParser = require('body-parser'),
+    request = require('request'),
+    WebClient = require('@slack/client').WebClient,
+    app = express(),
+    web = new WebClient(TOKEN),
+    port = process.env.PORT || 3000;
 
 app.use(bodyParser.json());
 
@@ -50,7 +52,7 @@ function getBuildLogs (req) {
   var buildNumber = req.body.build_number;
   var results;
   var buildLog;
-  var buildUrl = "https://semaphoreci.com/api/v1/projects/" + projectHashID + "/" + branchID + "/builds/" + buildNumber + "/log?auth_token=" + semaphoreAuth;
+  var buildUrl = "https://semaphoreci.com/api/v1/projects/" + PROJECT_HASH_ID + "/" + BRANCH_ID + "/builds/" + buildNumber + "/log?auth_token=" + SEMAPHORE_AUTH;
   console.log("Getting logs for build " + buildNumber + ".");
   request(buildUrl, function (error, response, body) {
     if (!error && response.statusCode == 200) {
@@ -84,7 +86,7 @@ function sendSlackMessage (req, message, callback) {
 
   // Sends a POST request to a Slack channel
   request({
-    url: slackChannelURL,
+    url: SLACK_CHANNEL_URL,
     method: 'POST',
     body: JSON.stringify(body)
   });
