@@ -58,7 +58,9 @@ function getBuildLogs (req) {
 
       // The callback is being fired too early
       sendSlackMessage(req, logs.results);
-      setTimeout(function() { replyViaThread("Failures will go here."); }, 3000);
+      setTimeout(function() {
+        replyViaThread(logs.failedTags);
+      }, 3000);
     }
   });
 }
@@ -91,12 +93,23 @@ function parseBuildLogs(rawLogs) {
 
 function parseFailedTags(logs) {
   if (logs.includes("Failed Example Tags:")) {
-    // TODO: Loop through for all failed tags. Send each in a new thread message
-    // TODO: Remove HTML formatting and put inside a code block
-    return "Failed Example Tags:" + logs.split("Failed Example Tags:")[1].split("Failures:")[0].split("Rerun")[0];
+    // Loop through for all failed tags. Send each in a new thread message
+    // Remove HTML formatting and put inside a code block
+    var pieces = logs.split("Failed Example Tags:");
+    var failureTags = [];
+    var c = 0;
+    pieces.forEach(function(){
+      // We want the odd ones
+      if (c % 2 == 1) {
+        failureTags.push('```' + "Failed Example Tags:"+ pieces[c].split("Failures:")[0].split("Rerun")[0].replace(/<(?:.|\n)*?>/gm, '') + '```');
+        console.log("C: " + c);
+      }
+      c += 1;
+    });
   } else {
     console.log("No failed tags found");
   }
+  return(failureTags);
 }
 
 // Formats the message based on the success of the build
@@ -156,26 +169,28 @@ function sendSlackMessage (req, message) {
 
 // Reply to the main message with the failed tags. Each tag group should be a new thread message
 var replyViaThread = function replyViaThread(message) {
-  if (message !== null) {
-    web.channels.history(CHANNEL_ID, {count: 1}, function (err, res) {
-      if (err) {
-        console.log('Error:', err);
-      }
-      else {
-        threadID = res.messages[0].thread_ts || res.messages[0].ts;
-        console.log('Thread Timestamp: ', threadID);
-        web.chat.postMessage(CHANNEL_ID, message, {thread_ts: threadID}, function (err, res) {
-          if (err) {
-            console.log('Error:', err);
-          } else {
-            console.log('Response: ', res);
-          }
-        });
-      }
+  try {
+    message.forEach(function(reply) {
+      web.channels.history(CHANNEL_ID, {count: 1}, function (err, res) {
+        if (err) {
+          console.log('Error:', err);
+        }
+        else {
+          threadID = res.messages[0].thread_ts || res.messages[0].ts;
+          console.log('Thread Timestamp: ', threadID);
+          web.chat.postMessage(CHANNEL_ID, reply, {thread_ts: threadID}, function (err, res) {
+            if (err) {
+              console.log('Error:', err);
+            } else {
+              console.log('Response: ', res);
+            }
+          });
+        }
+      });
     });
   }
-  else {
-    console.log("DEBUG: No failed build tags to send to Slack");
+  catch (err) {
+    console.log("Thread reply not sent. The build probably passed but here's the error message: " + err.message);
   }
 };
 
