@@ -56,7 +56,9 @@ function getBuildLogs (req) {
     if (!error && response.statusCode == 200) {
       var logs = parseBuildLogs(body);
 
-      sendSlackMessage(req, logs.results, replyViaThread(logs.failedTags));
+      // The callback is being fired too early
+      sendSlackMessage(req, logs.results);
+      setTimeout(function() { replyViaThread("Failures will go here."); }, 3000);
     }
   });
 }
@@ -140,7 +142,7 @@ function formatSlackMessage(req, message) {
 }
 
 // Send the main Slack message (Build Failed, Passed, etc.)
-function sendSlackMessage (req, message, callback) {
+function sendSlackMessage (req, message) {
   var body = formatSlackMessage(req, message);
   // Sends a POST request to the Slack channel
   request({
@@ -153,13 +155,13 @@ function sendSlackMessage (req, message, callback) {
 }
 
 // Reply to the main message with the failed tags. Each tag group should be a new thread message
-// TODO: move this into a callback to ensure it happens only after the main message is sent
-var replyViaThread = function(message) {
-  if (message != null) {
+var replyViaThread = function replyViaThread(message) {
+  if (message !== null) {
     web.channels.history(CHANNEL_ID, {count: 1}, function (err, res) {
       if (err) {
         console.log('Error:', err);
-      } else {
+      }
+      else {
         threadID = res.messages[0].thread_ts || res.messages[0].ts;
         console.log('Thread Timestamp: ', threadID);
         web.chat.postMessage(CHANNEL_ID, message, {thread_ts: threadID}, function (err, res) {
