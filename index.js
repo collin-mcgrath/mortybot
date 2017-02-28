@@ -101,7 +101,7 @@ function parseFailedTags(logs) {
     pieces.forEach(function(){
       // We want the odd ones
       if (c % 2 == 1) {
-        failureTags.push('```' + "Failed Example Tags:"+ pieces[c].split("Failures:")[0].split("Rerun")[0].replace(/<(?:.|\n)*?>/gm, '') + '```');
+        failureTags.push('```' + pieces[c].split("Failures:")[0].split("Rerun")[0].replace(/<(?:.|\n)*?>/gm, '').trim() + '```');
         console.log("C: " + c);
       }
       c += 1;
@@ -178,7 +178,7 @@ var replyViaThread = function replyViaThread(message) {
         else {
           threadID = res.messages[0].thread_ts || res.messages[0].ts;
           console.log('Thread Timestamp: ', threadID);
-          web.chat.postMessage(CHANNEL_ID, reply, {thread_ts: threadID}, function (err, res) {
+          web.chat.postMessage(CHANNEL_ID, reply, {thread_ts: threadID, username: "Failed Tags"}, function (err, res) {
             if (err) {
               console.log('Error:', err);
             } else {
