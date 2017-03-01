@@ -56,7 +56,7 @@ function getBuildLogs (req) {
     if (!error && response.statusCode == 200) {
       var logs = parseBuildLogs(body);
 
-      // The callback is being fired too early
+      // The callback is being fired too early. Just set to wait for now
       sendSlackMessage(req, logs.results);
       setTimeout(function() {
         replyViaThread(logs.failedTags);
@@ -101,7 +101,8 @@ function parseFailedTags(logs) {
     pieces.forEach(function(){
       // We want the odd ones
       if (c % 2 == 1) {
-        failureTags.push('```' + pieces[c].split("Failures:")[0].split("Rerun")[0].replace(/<(?:.|\n)*?>/gm, '').trim() + '```');
+        // TODO: the parsing could obviously be improved
+        failureTags.push('```' + pieces[c].split("Failures:")[0].split("Rerun")[0].replace(/<(?:.|\n)*?>/gm, '').trim().replace(/ /g,'').replace(/\)/g, ') ') + '```');
         console.log("C: " + c);
       }
       c += 1;
