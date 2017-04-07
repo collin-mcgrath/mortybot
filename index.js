@@ -103,7 +103,6 @@ function parseFailedTags(logs) {
       if (c % 2 == 1) {
         // TODO: the parsing could obviously be improved
         failureTags.push('```' + pieces[c].split("Failures:")[0].split("Rerun")[0].replace(/<(?:.|\n)*?>/gm, '').trim().replace(/ /g,'').replace(/\)/g, ') ') + '```');
-        console.log("C: " + c);
       }
       c += 1;
     });
@@ -143,6 +142,17 @@ function formatSlackMessage(req, message) {
     attachment.fallback = "Build " + buildNumber + " failed";
     attachment.color = 'danger';
     console.log("Build " + buildNumber + " failed");
+    var rebuildURL = "https://semaphoreci.com/api/v1/projects/" + PROJECT_HASH_ID + "/" + BRANCH_ID + "/build" + "?auth_token=" + SEMAPHORE_AUTH;
+    request({method: 'POST', url: rebuildURL}, function (error, response, body) {
+      if (!error && response.statusCode == 200) {
+        console.log("Rebuild request sent");
+        console.log(body);
+      }
+      else {
+        console.log("Error sending rebuild request");
+        console.log(response);
+      }
+    });
   }
   // All passing builds
   else {
