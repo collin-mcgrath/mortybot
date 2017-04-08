@@ -3,6 +3,9 @@ notes.txt
 *txt
 config.json
 test.js
+event.json
+event_sources.json
+context.json
 .env
 semaphore*.json
 *semaphore*

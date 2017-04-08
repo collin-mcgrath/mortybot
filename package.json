@@ -4,7 +4,7 @@
   "description": "Bot to post Semaphore builds",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
+    "start": "node-lambda run",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Bobby Kearns & Collin McGrath",
@@ -14,6 +14,7 @@
     "body-parser": "^1.10.1",
     "express": "^4.10.7",
     "nodemon": "^1.11.0",
-    "request": "^2.79.0"
+    "request": "^2.79.0",
+    "node-lambda": "0.1.5"
   }
 }
