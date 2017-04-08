@@ -5,7 +5,7 @@ exports.handler = function(event, context) {
     config = require('./config.json');
     console.log("Required local dev config");
   } catch (err) {
-    console.log("Local config.json not needed on Heroku. Using Heroku config instead.");
+    console.log("Local config.json not needed on AWS. Using AWS config instead.");
   }
 
   // Constants and ENV stuff
@@ -18,12 +18,12 @@ exports.handler = function(event, context) {
 
   var request = require('request'),
       WebClient = require('@slack/client').WebClient,
-      web = new WebClient(TOKEN)
+      web = new WebClient(TOKEN);
 
   getBuildLogs(event);
 
   // Builds the URL and makes a GET request to the Semaphore API to get the full build logs
-  function getBuildLogs (event) {
+  function getBuildLogs(event) {
     var buildNumber = event.build_number;
     var buildUrl = "https://semaphoreci.com/api/v1/projects/" + PROJECT_HASH_ID + "/" + BRANCH_ID + "/builds/" + buildNumber + "/log?auth_token=" + SEMAPHORE_AUTH;
     console.log("Getting logs for build " + buildNumber + ".");
@@ -31,8 +31,9 @@ exports.handler = function(event, context) {
       if (!error && response.statusCode == 200) {
         var logs = parseBuildLogs(body);
 
-        // The callback is being fired too early. Just set to wait for now
         sendSlackMessage(event, logs.results);
+        // We wait 3 second to replyViaThread to avoid replying to the previous message
+        // TODO: handle this with a callback (still replying too fast)
         setTimeout(function() {
           replyViaThread(logs.failedTags);
         }, 3000);
@@ -67,11 +68,12 @@ exports.handler = function(event, context) {
   }
 
   function parseFailedTags(logs) {
+    var failureTags;
     if (logs.includes("Failed Example Tags:")) {
       // Loop through for all failed tags. Send each in a new thread message
       // Remove HTML formatting and put inside a code block
       var pieces = logs.split("Failed Example Tags:");
-      var failureTags = [];
+      failureTags = [];
       var c = 0;
       pieces.forEach(function(){
         // We want the odd ones
@@ -88,7 +90,6 @@ exports.handler = function(event, context) {
   }
 
   // Formats the message based on the success of the build
-  // TODO: Could definitely be DRYer
   function formatSlackMessage(event, message) {
     var buildNumber = event.build_number;
     var buildURL = event.build_url;
@@ -100,9 +101,8 @@ exports.handler = function(event, context) {
     };
     var attachment = {};
 
-    // TODO: Move into switch statement
     // Handles builds where execution expired and no results are recorded
-    // "Unknown failure" happens when the build dies before the final command runs (e.g. K8 launch failure)
+    // "Unknown failure" happens when the build dies before the final command runs (e.g. cluster launch failure)
     if (message == "Unknown failure" || message === undefined) {
       attachment.title = "<" + buildURL + "|Build " + buildNumber + ">";
       attachment.text = "No information. Please examine build logs.";
@@ -117,6 +117,7 @@ exports.handler = function(event, context) {
       attachment.fallback = "Build " + buildNumber + " failed";
       attachment.color = 'danger';
       console.log("Build " + buildNumber + " failed");
+      // Send a rebuild request to Semaphore if the build failed
       var rebuildURL = "https://semaphoreci.com/api/v1/projects/" + PROJECT_HASH_ID + "/" + BRANCH_ID + "/build" + "?auth_token=" + SEMAPHORE_AUTH;
       // request({method: 'POST', url: rebuildURL}, function (error, response, body) {
       //   if (!error && response.statusCode == 200) {
@@ -178,5 +179,5 @@ exports.handler = function(event, context) {
     catch (err) {
       console.log("Thread reply not sent. The build probably passed but here's the error message: " + err.message);
     }
-  };
-}
+  }
+};
